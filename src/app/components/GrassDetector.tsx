@@ -9,8 +9,16 @@ import Menu from './Menu'
 // Add type definitions for legacy getUserMedia
 declare global {
   interface Navigator {
-    webkitGetUserMedia?: (constraints: MediaStreamConstraints) => Promise<MediaStream>;
-    mozGetUserMedia?: (constraints: MediaStreamConstraints) => Promise<MediaStream>;
+    webkitGetUserMedia?: (
+      constraints: MediaStreamConstraints,
+      successCallback: (stream: MediaStream) => void,
+      errorCallback: (error: Error) => void
+    ) => void;
+    mozGetUserMedia?: (
+      constraints: MediaStreamConstraints,
+      successCallback: (stream: MediaStream) => void,
+      errorCallback: (error: Error) => void
+    ) => void;
   }
 }
 
@@ -47,7 +55,11 @@ export default function GrassDetector() {
                 return Promise.reject(new Error('getUserMedia is not implemented in this browser'))
               }
               return new Promise((resolve, reject) => {
-                getUserMedia.call(navigator, constraints, resolve, reject)
+                getUserMedia.bind(navigator)(
+                  constraints,
+                  (stream) => resolve(stream),
+                  (error) => reject(error)
+                )
               })
             }
           }
