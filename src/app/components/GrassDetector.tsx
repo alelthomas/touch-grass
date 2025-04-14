@@ -105,22 +105,40 @@ export default function GrassDetector() {
       // Try to load from localStorage first
       const savedData = localStorage.getItem('grassDetectorData')
       if (savedData) {
-        const dataset = JSON.parse(savedData)
-        // Convert the dataset back to tensors
-        Object.entries(dataset).forEach(([label, data]: [string, any]) => {
-          const tensor = tf.tensor2d(data.data, [data.shape[0], data.shape[1]])
-          knn.addExample(tensor, label)
-          setTrainingStats(prev => ({
-            ...prev,
-            [label]: (prev[label as keyof TrainingStats] || 0) + 1
-          }))
-        })
+        await loadDatasetFromJSON(JSON.parse(savedData), knn)
         console.log('Loaded training examples from localStorage')
         setMessage('Loaded saved training examples!')
+        return
+      }
+
+      // If no localStorage data, try to load default dataset
+      try {
+        const response = await fetch('/training-data/default-dataset.json')
+        if (response.ok) {
+          const defaultDataset = await response.json()
+          await loadDatasetFromJSON(defaultDataset, knn)
+          console.log('Loaded default training examples')
+          setMessage('Loaded default training examples!')
+        }
+      } catch (error) {
+        console.log('No default training data found:', error)
+        setMessage('Start by adding some training examples!')
       }
     } catch (error) {
       console.error('Error loading training examples:', error)
     }
+  }
+
+  // Helper function to load dataset from JSON
+  const loadDatasetFromJSON = async (dataset: any, knn: knnClassifier.KNNClassifier) => {
+    Object.entries(dataset).forEach(([label, data]: [string, any]) => {
+      const tensor = tf.tensor2d(data.data, [data.shape[0], data.shape[1]])
+      knn.addExample(tensor, label)
+      setTrainingStats(prev => ({
+        ...prev,
+        [label]: (prev[label as keyof TrainingStats] || 0) + 1
+      }))
+    })
   }
 
   const saveTrainingExamples = async (knn: knnClassifier.KNNClassifier) => {
@@ -160,7 +178,8 @@ export default function GrassDetector() {
           return acc
         }, {})
 
-        const dataStr = JSON.stringify(datasetObj)
+        // Save to file
+        const dataStr = JSON.stringify(datasetObj, null, 2)
         const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr)
         
         const linkElement = document.createElement('a')
@@ -169,6 +188,9 @@ export default function GrassDetector() {
         document.body.appendChild(linkElement)
         linkElement.click()
         document.body.removeChild(linkElement)
+
+        // Also update the message to guide users
+        setMessage('Training data exported! Save this file to the public/training-data directory as default-dataset.json to use as default data.')
       }
     } catch (error) {
       console.error('Error exporting training data:', error)
