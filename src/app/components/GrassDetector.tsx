@@ -5,6 +5,8 @@ import * as tf from '@tensorflow/tfjs'
 import * as mobilenet from '@tensorflow-models/mobilenet'
 import * as knnClassifier from '@tensorflow-models/knn-classifier'
 import Menu from './Menu'
+import WelcomeScreen from './WelcomeScreen'
+import SuccessScreen from './SuccessScreen'
 
 // Add type definitions for legacy getUserMedia
 declare global {
@@ -27,6 +29,9 @@ interface TrainingStats {
   not_grass: number;
 }
 
+// Add new type for app state
+type AppState = 'welcome' | 'detecting' | 'success';
+
 export default function GrassDetector() {
   const videoRef = useRef<HTMLVideoElement>(null)
   const [isDetecting, setIsDetecting] = useState(false)
@@ -36,6 +41,7 @@ export default function GrassDetector() {
   const [hasCamera, setHasCamera] = useState(false)
   const [isTraining, setIsTraining] = useState(false)
   const [trainingStats, setTrainingStats] = useState<TrainingStats>({ grass: 0, not_grass: 0 })
+  const [appState, setAppState] = useState<AppState>('welcome')
 
   // Initialize TensorFlow and models
   useEffect(() => {
@@ -256,7 +262,7 @@ export default function GrassDetector() {
         videoRef.current.onloadedmetadata = () => {
           videoRef.current?.play()
           setHasCamera(true)
-          setMessage('Camera ready! Add some training examples or try detection.')
+          setMessage('Camera ready. Time to touch some grass!')
         }
       }
     } catch (error) {
@@ -271,10 +277,8 @@ export default function GrassDetector() {
 
     setIsDetecting(true)
     try {
-      // Get the activation from the video element
       const activation = model.infer(videoRef.current, true)
       
-      // If we have no training examples, use the basic MobileNet classification
       if (classifier.getNumClasses() === 0) {
         const predictions = await model.classify(videoRef.current)
         console.log('MobileNet predictions:', predictions)
@@ -285,17 +289,16 @@ export default function GrassDetector() {
         )
 
         if (grassPrediction && grassPrediction.probability > 0.5) {
-          setMessage('Grass detected! 🌱 (Using basic detection - add training examples for better results)')
+          setAppState('success')
         } else {
-          setMessage('No grass detected. Try again or add training examples!')
+          setMessage('That ain\'t grass. 🤨 Try again!')
         }
       } else {
-        // Use the trained KNN classifier
         const result = await classifier.predictClass(activation)
         console.log('KNN prediction:', result)
         
         if (result.label === 'grass' && result.confidences[result.label] > 0.7) {
-          setMessage('Grass touched! 🌱 (Confidence: ' + Math.round(result.confidences[result.label] * 100) + '%)')
+          setAppState('success')
         } else {
           setMessage('No grass detected. Try again!')
         }
@@ -305,6 +308,14 @@ export default function GrassDetector() {
       setMessage('Error during detection. Please try again.')
     }
     setIsDetecting(false)
+  }
+
+  if (appState === 'welcome') {
+    return <WelcomeScreen onStart={() => setAppState('detecting')} />
+  }
+
+  if (appState === 'success') {
+    return <SuccessScreen />
   }
 
   return (
