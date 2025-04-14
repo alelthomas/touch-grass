@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import * as tf from '@tensorflow/tfjs'
 import * as mobilenet from '@tensorflow-models/mobilenet'
 import * as knnClassifier from '@tensorflow-models/knn-classifier'
+import Menu from './Menu'
 
 // Add type definitions for legacy getUserMedia
 declare global {
@@ -21,7 +22,6 @@ export default function GrassDetector() {
   const [classifier, setClassifier] = useState<knnClassifier.KNNClassifier | null>(null)
   const [hasCamera, setHasCamera] = useState(false)
   const [isTraining, setIsTraining] = useState(false)
-  const [trainingMode, setTrainingMode] = useState<'grass' | 'not_grass' | null>(null)
 
   // Initialize TensorFlow and models
   useEffect(() => {
@@ -166,6 +166,13 @@ export default function GrassDetector() {
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 p-4">
+      <Menu
+        onAddGrassExample={() => addExample('grass')}
+        onAddNonGrassExample={() => addExample('not_grass')}
+        isTraining={isTraining}
+        isModelReady={!!model && !!classifier}
+        hasCamera={hasCamera}
+      />
       <div className="relative w-full max-w-md aspect-[3/4] bg-black rounded-lg overflow-hidden">
         <video
           ref={videoRef}
@@ -174,31 +181,13 @@ export default function GrassDetector() {
           muted
           className="w-full h-full object-cover"
         />
-        <div className="absolute bottom-4 left-0 right-0 flex flex-col items-center gap-2">
-          <div className="flex gap-2">
-            <button
-              onClick={() => addExample('grass')}
-              disabled={!model || isTraining || !hasCamera}
-              className="bg-green-500 text-white px-4 py-2 rounded-full shadow-lg disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors text-sm"
-            >
-              Add Grass Example
-            </button>
-            <button
-              onClick={() => addExample('not_grass')}
-              disabled={!model || isTraining || !hasCamera}
-              className="bg-red-500 text-white px-4 py-2 rounded-full shadow-lg disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors text-sm"
-            >
-              Add Non-Grass Example
-            </button>
-          </div>
-          <button
-            onClick={detectGrass}
-            disabled={!model || isDetecting || !hasCamera}
-            className="bg-blue-500 text-white px-6 py-3 rounded-full shadow-lg disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
-          >
-            {!hasCamera ? 'Camera Not Available' : isDetecting ? 'Detecting...' : 'Detect Grass'}
-          </button>
-        </div>
+        <button
+          onClick={detectGrass}
+          disabled={!model || isDetecting || !hasCamera}
+          className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-blue-500 text-white px-6 py-3 rounded-full shadow-lg disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+        >
+          {!hasCamera ? 'Camera Not Available' : isDetecting ? 'Detecting...' : 'Detect Grass'}
+        </button>
       </div>
       <p className="mt-4 text-center text-lg font-medium text-gray-700">
         {message}
